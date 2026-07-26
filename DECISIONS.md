@@ -1,0 +1,55 @@
+# Decisiones de Diseño
+
+## Broker: Kafka
+
+Kafka particionado por `numericOrderId`. Todos los ER de una misma orden van a la misma partición,
+garantizando orden de procesamiento sin locks distribuidos. Un consumer group con 2 instancias
+reparte particiones automáticamente.
+
+**Alternativa descartada:** RabbitMQ con consistent hash exchange — pierde log reproducible y
+complica DLQ/replay.
+
+## Persistencia: PostgreSQL + JPA
+
+Motor relacional por la naturaleza transaccional del problema: leer estado actual, validar, escribir
+ledger y actualizar orden como operación atómica.
+
+Se usa JPA para simplificar el CRUD. **Si los tiempos de respuesta no son satisfactorios, se migrará
+a JDBC directo** que garantiza mayor velocidad al eliminar el overhead del ORM.
+
+## Locking: SELECT FOR UPDATE (pessimistic)
+
+Dentro de una partición Kafka el procesamiento ya es secuencial, así que el lock casi nunca contende.
+Pero protege contra el edge case de rebalance donde dos instancias procesan brevemente la misma
+partición.
+
+## Idempotencia: fix_id UNIQUE en order_ledger
+
+`fix_id` como constraint UNIQUE — insert-or-reject atómico. Más robusto que check-then-insert
+(sin race conditions).
+
+## Estado de la orden: calculado, no sobreescrito
+
+`OrderStateMachine.apply(currentState, incomingER)` — función pura. El nuevo estado se computa
+desde el estado ya persistido + el ER entrante.
+
+## executions_applied_count
+
+Cuenta **todo ER aplicado**, incluyendo NEW. Es "cantidad de ERs efectivamente aplicados", no solo
+fills.
+
+## Settlement: transactional outbox + relay SKIP LOCKED
+
+Insert en `settlement_outbox` en la misma transacción que el update a FILLED. Relay con
+`SELECT ... FOR UPDATE SKIP LOCKED` para que ambas instancias puedan correr el poller sin duplicar
+publicaciones.
+
+## Errores
+
+- **Transitorios** (DB timeout, conexión): retry con backoff exponencial, N intentos.
+- **Permanentes** (JSON inválido, campos faltantes): DLQ topic + ack del original.
+- **ER sobre orden terminal**: anomalía logueada + commit normal. NO va a DLQ.
+
+## Trade-offs dejados afuera
+
+> TODO: se completará en Fase 9
