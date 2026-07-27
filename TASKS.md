@@ -167,7 +167,7 @@ Convención: cada tarea indica su **criterio de aceptación** — no se marca co
 
 ## Fase 8 — Generador de stream de prueba
 
-- [ ] Implementar `POST /test/seed` (o script standalone — decisión anotada en `DECISIONS.md`) que:
+- [x] Implementar `POST /test/seed` (o script standalone — decisión anotada en `DECISIONS.md`) que:
       genera N órdenes con secuencias válidas de ER, intercala la publicación entre órdenes (no
       publica todos los ER de una orden seguidos), e inyecta 1-2 `fix_id` repetidos a propósito.
       **Acepta:** un solo comando (`curl` al endpoint o `./scripts/seed.sh`) deja el sistema con
