@@ -1,6 +1,7 @@
 services:
   postgres:
     image: postgres:16-alpine
+    container_name: postgres
     networks:
       - app-network
     environment:
@@ -19,6 +20,7 @@ services:
 
   kafka:
     image: apache/kafka:latest
+    container_name: kafka
     networks:
       - app-network
     environment:
@@ -45,6 +47,7 @@ services:
 
   kafka-init:
     image: apache/kafka:latest
+    container_name: kafka-init
     restart: "no"
     networks:
       - app-network
@@ -61,10 +64,11 @@ services:
         echo "Topics created:"
         /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list
 
-  service:
+  service-a:
     build:
       context: ./service
       dockerfile: Dockerfile
+    container_name: service-a
     networks:
       - app-network
     environment:
@@ -84,6 +88,34 @@ services:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  service-b:
+    build:
+      context: ./service
+      dockerfile: Dockerfile
+    container_name: service-b
+    networks:
+      - app-network
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/execution_reports
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SERVER_PORT: 8081
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10

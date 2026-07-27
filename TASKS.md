@@ -152,13 +152,13 @@ Convención: cada tarea indica su **criterio de aceptación** — no se marca co
 
 ## Fase 7 — Dos instancias + prueba de caída
 
-- [ ] Completar `docker-compose.yml`: `service-a` y `service-b` (misma imagen, mismo `group.id` de
+- [x] Completar `docker-compose.yml`: `service-a` y `service-b` (misma imagen, mismo `group.id` de
       Kafka), healthchecks, `depends_on` con condición para arranque confiable.
-- [ ] Verificar reparto de particiones: con `docker compose up`, confirmar (log o herramienta de
+- [x] Verificar reparto de particiones: con `docker compose up`, confirmar (log o herramienta de
       Kafka) que las particiones del topic se dividen entre `service-a` y `service-b`.
-- [ ] Prueba documentada (manual, automatizada si el tiempo alcanza): sembrar carga → matar
+- [x] Prueba documentada (manual, automatizada si el tiempo alcanza): sembrar carga → matar
       `service-a` a mitad de procesamiento (`docker compose kill service-a`) → verificar vía
-      `/orders/{id}` en `service-b` que el estado sigue avanzando correctamente → levantar
+      `/orders/{id}` en `service-b` que el estado sigue advancing correctamente → levantar
       `service-a` de nuevo → verificar que no hay duplicados ni pérdidas en ninguna orden afectada.
       **Acepta:** el procedimiento se puede reproducir siguiendo únicamente los pasos que van a
       quedar en el README (Fase 9), sin conocimiento previo del código.
