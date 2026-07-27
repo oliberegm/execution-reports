@@ -177,14 +177,14 @@ Convención: cada tarea indica su **criterio de aceptación** — no se marca co
 
 ## Fase 9 — Documentación final
 
-- [ ] `README.md`: instrucciones de `docker compose up`, cómo sembrar datos, y pasos concretos para
+- [x] `README.md`: instrucciones de `docker compose up`, cómo sembrar datos, y pasos concretos para
       reproducir cada escenario clave (intercalado, duplicado, caída de instancia).
-- [ ] `DECISIONS.md`: condensar `solucion-diseno.md` respondiendo punto por punto lo que pide el
+- [x] `DECISIONS.md`: condensar `solucion-diseno.md` respondiendo punto por punto lo que pide el
       enunciado original (broker y por qué, estrategia de secuencia con 2 consumidores, idempotencia
       y clave de dedup, motor de persistencia y por qué, cómo se garantiza que el estado refleje la
       secuencia exacta, política de errores, garantía de settlement exactamente una vez, trade-offs
       dejados afuera).
-- [ ] Revisión final: releer el enunciado original punto por punto contra el checklist de
+- [x] Revisión final: releer el enunciado original punto por punto contra el checklist de
       `plan-implementacion.md` §"Checklist de verificación" y marcar explícitamente en
       `DECISIONS.md` cualquier desvío consciente.
       **Acepta:** un tercero puede clonar el repo, seguir el README sin ayuda adicional, y reproducir
