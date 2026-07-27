@@ -1,10 +1,10 @@
 package com.maxcapital.executionreports.infrastructure.persistence;
 
+import com.maxcapital.executionreports.domain.Order;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import jakarta.persistence.Version;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -62,13 +62,25 @@ public class OrderEntity {
     @Column(name = "last_applied_fix_id")
     private Long lastAppliedFixId;
 
-    @Version
-    @Column(name = "version", nullable = false)
-    private Integer version;
-
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    public void updateState(Order order) {
+        this.marketOrderId = order.marketOrderId();
+        this.ticker = order.ticker();
+        this.side = order.side();
+        this.securityType = order.securityType();
+        this.status = order.status().name();
+        this.orderPrice = order.orderPrice();
+        this.nominalAmounts = order.nominalAmounts();
+        this.leavesNominalAmount = order.leavesNominalAmount();
+        this.accumulativeNominalAmount = order.accumulativeNominalAmount();
+        this.avgPrice = order.avgPrice();
+        this.executionsAppliedCount = order.executionsAppliedCount();
+        this.lastAppliedFixId = order.lastAppliedFixId();
+        this.updatedAt = LocalDateTime.now();
+    }
 }

@@ -1,6 +1,6 @@
 package com.maxcapital.executionreports.domain;
 
-public sealed interface ApplyResult permits ApplyResult.Success, ApplyResult.Rejection {
+public sealed interface ApplyResult permits ApplyResult.Success, ApplyResult.Rejection, ApplyResult.AlreadyProcessed {
 
     enum RejectionReason {
         ORPHAN_REPORT,
@@ -11,5 +11,8 @@ public sealed interface ApplyResult permits ApplyResult.Success, ApplyResult.Rej
     }
 
     record Rejection(RejectionReason reason, String message) implements ApplyResult {
+    }
+
+    record AlreadyProcessed(Long fixId, Long numericOrderId) implements ApplyResult {
     }
 }

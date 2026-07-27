@@ -73,7 +73,7 @@ Convención: cada tarea indica su **criterio de aceptación** — no se marca co
 
 ## Fase 3 — Procesamiento transaccional (sin Kafka todavía)
 
-- [ ] Implementar `ExecutionReportProcessor.process(er)`:
+- [x] Implementar `ExecutionReportProcessor.process(er)`:
       1. intenta insertar en `order_ledger` por `fix_id` → si falla por duplicado, no-op y retorna.
       2. si insertó: obtiene el estado actual de `orders` con locking (elegir `SELECT FOR UPDATE` u
          optimistic locking con `version` — anotar la elección en `DECISIONS.md`).
@@ -83,14 +83,14 @@ Convención: cada tarea indica su **criterio de aceptación** — no se marca co
       5. si es válido → persiste el nuevo estado de `orders`.
       6. si corresponde settlement → inserta fila en `settlement_outbox`, misma transacción.
       Todo el método corre dentro de una única transacción (`@Transactional` o manejo explícito).
-- [ ] Test de integración: aplicar secuencia completa `NEW → PARTIALLY_FILLED → FILLED` → verificar
+- [x] Test de integración: aplicar secuencia completa `NEW → PARTIALLY_FILLED → FILLED` → verificar
       estado final en `orders` y 3 filas en `order_ledger`.
-- [ ] Test de integración: aplicar el mismo ER (mismo `fix_id`) dos veces → `order_ledger` tiene una
+- [x] Test de integración: aplicar el mismo ER (mismo `fix_id`) dos veces → `order_ledger` tiene una
       sola fila, `executions_applied_count` no se duplicó.
-- [ ] Test de integración: aplicar un ER sobre una orden ya `FILLED` → `orders` no cambia, pero el ER
+- [x] Test de integración: aplicar un ER sobre una orden ya `FILLED` → `orders` no cambia, pero el ER
       queda registrado como anomalía (según el mecanismo elegido: log estructurado o tabla).
-- [ ] Test de integración: `FILLED` inserta fila en `settlement_outbox`; `CANCELLED` no inserta nada.
-- [ ] Test de concurrencia: dos threads invocando `process(er)` con el **mismo** `fix_id` al mismo
+- [x] Test de integración: `FILLED` inserta fila en `settlement_outbox`; `CANCELLED` no inserta nada.
+- [x] Test de concurrencia: dos threads invocando `process(er)` con el **mismo** `fix_id` al mismo
       tiempo → el ledger termina con una sola fila (no dos por *race condition*).
       **Acepta:** todos los tests verdes contra Postgres real. Esta fase es la más crítica del
       proyecto — no avanzar a Fase 4 sin cobertura sólida acá.

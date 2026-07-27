@@ -20,13 +20,11 @@ a JDBC directo** que garantiza mayor velocidad al eliminar el overhead del ORM.
 ## Locking: SELECT FOR UPDATE (pessimistic)
 
 Dentro de una partición Kafka el procesamiento ya es secuencial, así que el lock casi nunca contende.
-Pero protege contra el edge case de rebalance donde dos instancias procesan brevemente la misma
-partición.
+Se utiliza exclusivamente `SELECT FOR UPDATE` (`@Lock(LockModeType.PESSIMISTIC_WRITE)`). Se prescinde de `@Version` (optimistic locking) para evitar duplicación de mecanismos de sincronización.
 
 ## Idempotencia: fix_id UNIQUE en order_ledger
 
-`fix_id` como constraint UNIQUE — insert-or-reject atómico. Más robusto que check-then-insert
-(sin race conditions).
+`existsByFixId` actúa como un short-circuit de performance para el caso no concurrente; la garantía real de exactamente-una-vez la proporciona el constraint `UNIQUE` en `order_ledger.fix_id` junto con la captura de la violación en la inserción previa en `order_ledger`, retornando `ApplyResult.AlreadyProcessed` de forma transparente.
 
 ## Estado de la orden: calculado, no sobreescrito
 
