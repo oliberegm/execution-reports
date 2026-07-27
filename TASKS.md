@@ -124,14 +124,14 @@ Convención: cada tarea indica su **criterio de aceptación** — no se marca co
 
 ## Fase 5 — Relay de settlement
 
-- [ ] Implementar `OutboxRelay`: job programado (`@Scheduled`, intervalo corto) que lee filas
+- [x] Implementar `OutboxRelay`: job programado (`@Scheduled`, intervalo corto) que lee filas
       `PENDING` de `settlement_outbox`, publica al topic `settlement` con `key = numericOrderId`, y
       marca `SENT` tras el ack del producer.
-- [ ] Configurar producer de Kafka con `enable.idempotence=true`.
-- [ ] Test de integración: forzar que una orden llegue a `FILLED` a través de una reentrega del ER
+- [x] Configurar producer de Kafka con `enable.idempotence=true`.
+- [x] Test de integración: forzar que una orden llegue a `FILLED` a través de una reentrega del ER
       final → verificar una sola fila en `settlement_outbox` y un solo mensaje en el topic
       `settlement` para esa orden.
-- [ ] Test de integración: simular fallo del relay entre publicar y marcar `SENT` (mockeando el
+- [x] Test de integración: simular fallo del relay entre publicar y marcar `SENT` (mockeando el
       repositorio o cortando la conexión a mitad) → al reintentar, no se pierde la fila ni queda
       publicada dos veces de forma no deduplicable (la key sigue siendo la misma orden).
       **Acepta:** tests verdes; verificar manualmente con un consumidor de `settlement` que no hay
