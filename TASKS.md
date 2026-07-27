@@ -99,22 +99,22 @@ Convención: cada tarea indica su **criterio de aceptación** — no se marca co
 
 ## Fase 4 — Integración con Kafka
 
-- [ ] Crear topics (vía script de init o config del broker): `execution-reports` (≥6 particiones),
+- [x] Crear topics (vía script de init o config del broker): `execution-reports` (≥6 particiones),
       `execution-reports.dlq`, `settlement`.
-- [ ] Configurar productor de prueba/consumidor con `key = numericOrderId` para
+- [x] Configurar productor de prueba/consumidor con `key = numericOrderId` para
       `execution-reports`, garantizando el particionado correcto.
-- [ ] Listener de Kafka con `enable.auto.commit=false` y ack manual **después** de que
+- [x] Listener de Kafka con `enable.auto.commit=false` y ack manual **después** de que
       `ExecutionReportProcessor.process(er)` retorna con éxito.
-- [ ] Manejo de errores diferenciado:
+- [x] Manejo de errores diferenciado:
       - transitorio (ej. `DataAccessException` de conexión) → no ack, reintento con backoff acotado
         (`DefaultErrorHandler` de Spring Kafka, N intentos configurables).
       - permanente (deserialización inválida, o excepción de dominio marcada como no-recuperable) →
         tras agotar reintentos razonables, publicar en `execution-reports.dlq` con el motivo del
         error, y hacer ack del mensaje original.
-- [ ] Test de integración con Testcontainers Kafka: publicar ER intercalados de 3-4 órdenes distintas
+- [x] Test de integración con Testcontainers Kafka: publicar ER intercalados de 3-4 órdenes distintas
       con un `fix_id` duplicado en el medio del stream → verificar estado final correcto de cada
       orden y ausencia del duplicado en el ledger.
-- [ ] Test de integración: publicar un mensaje deliberadamente inválido (JSON corrupto) → aparece en
+- [x] Test de integración: publicar un mensaje deliberadamente inválido (JSON corrupto) → aparece en
       `execution-reports.dlq`, el consumidor sigue procesando los mensajes siguientes de esa misma
       partición sin bloquearse.
       **Acepta:** todos los tests verdes; verificar manualmente con `kafka-console-consumer` que los
