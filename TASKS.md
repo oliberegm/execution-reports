@@ -141,9 +141,9 @@ Convención: cada tarea indica su **criterio de aceptación** — no se marca co
 
 ## Fase 6 — Endpoint HTTP
 
-- [ ] `GET /orders/{numericOrderId}`: 404 si no existe; 200 con `status`,
+- [x] `GET /orders/{numericOrderId}`: 404 si no existe; 200 con `status`,
       `executionsAppliedCount`, cantidades vigentes, y el detalle del ledger ordenado por `id ASC`.
-- [ ] Test de integración: sembrar una secuencia de ER vía Kafka (extremo a extremo), esperar
+- [x] Test de integración: sembrar una secuencia de ER vía Kafka (extremo a extremo), esperar
       procesamiento (con timeout/polling corto en el test), consultar el endpoint, verificar el JSON
       contra lo esperado.
       **Acepta:** test verde, JSON de respuesta incluye ledger en el orden correcto de inserción.
