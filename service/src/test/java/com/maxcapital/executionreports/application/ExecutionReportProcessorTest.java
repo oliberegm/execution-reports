@@ -89,14 +89,20 @@ class ExecutionReportProcessorTest extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("Aplicar el mismo fix_id dos veces es idempotente y no duplica ejecuciones en order u order_ledger")
+    @DisplayName("Aplicar el mismo fix_id dos veces es idempotente, devuelve AlreadyProcessed y no duplica ejecuciones")
     void duplicateFixId_isIdempotentAndDoesNotDuplicateExecution() {
         Long numericOrderId = 5002L;
         ExecutionReport newEr = createER(1001L, numericOrderId, OrderStatus.NEW,
                 new BigDecimal("100.00"), new BigDecimal("0.00"), new BigDecimal("10.00"));
 
-        processor.process(newEr);
-        processor.process(newEr);
+        ApplyResult res1 = processor.process(newEr);
+        ApplyResult res2 = processor.process(newEr);
+
+        assertThat(res1).isInstanceOf(ApplyResult.Success.class);
+        assertThat(res2).isInstanceOf(ApplyResult.AlreadyProcessed.class);
+        ApplyResult.AlreadyProcessed alreadyProcessed = (ApplyResult.AlreadyProcessed) res2;
+        assertThat(alreadyProcessed.fixId()).isEqualTo(1001L);
+        assertThat(alreadyProcessed.numericOrderId()).isEqualTo(numericOrderId);
 
         Optional<OrderEntity> orderOpt = orderRepository.findByNumericOrderId(numericOrderId);
         assertThat(orderOpt).isPresent();
@@ -153,7 +159,7 @@ class ExecutionReportProcessorTest extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("Ejecución concurrente de threads invocando el mismo fix_id resulta en exactamente una fila en order_ledger")
+    @DisplayName("Ejecución concurrente de threads invocando el mismo fix_id resulta en 1 Success y (N-1) AlreadyProcessed sin excepciones")
     void concurrentExecution_sameFixId_onlyOneSucceeds() throws InterruptedException {
         Long numericOrderId = 5005L;
         Long fixId = 2000L;
@@ -165,6 +171,7 @@ class ExecutionReportProcessorTest extends AbstractIntegrationTest {
         CountDownLatch readyLatch = new CountDownLatch(threadCount);
         CountDownLatch startLatch = new CountDownLatch(1);
         AtomicInteger successCounter = new AtomicInteger(0);
+        AtomicInteger alreadyProcessedCounter = new AtomicInteger(0);
 
         for (int i = 0; i < threadCount; i++) {
             executor.submit(() -> {
@@ -174,8 +181,11 @@ class ExecutionReportProcessorTest extends AbstractIntegrationTest {
                     ApplyResult result = processor.process(er);
                     if (result instanceof ApplyResult.Success) {
                         successCounter.incrementAndGet();
+                    } else if (result instanceof ApplyResult.AlreadyProcessed) {
+                        alreadyProcessedCounter.incrementAndGet();
                     }
-                } catch (Exception ignored) {
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                 }
             });
         }
@@ -185,6 +195,9 @@ class ExecutionReportProcessorTest extends AbstractIntegrationTest {
         executor.shutdown();
         boolean terminated = executor.awaitTermination(5, TimeUnit.SECONDS);
         assertThat(terminated).isTrue();
+
+        assertThat(successCounter.get()).isEqualTo(1);
+        assertThat(alreadyProcessedCounter.get()).isEqualTo(threadCount - 1);
 
         List<OrderLedgerEntity> ledger = orderLedgerRepository.findByNumericOrderIdOrderByIdAsc(numericOrderId);
         assertThat(ledger).hasSize(1);

@@ -33,6 +33,10 @@ public class OrderEntityMapper {
     }
 
     public static OrderEntity toEntity(Order order, OrderEntity existingEntity) {
+        if (existingEntity != null) {
+            existingEntity.updateState(order);
+            return existingEntity;
+        }
         LocalDateTime now = LocalDateTime.now();
         return OrderEntity.builder()
                 .numericOrderId(order.numericOrderId())
@@ -48,8 +52,7 @@ public class OrderEntityMapper {
                 .avgPrice(order.avgPrice())
                 .executionsAppliedCount(order.executionsAppliedCount())
                 .lastAppliedFixId(order.lastAppliedFixId())
-                .version(existingEntity != null ? existingEntity.getVersion() : null)
-                .createdAt(existingEntity != null ? existingEntity.getCreatedAt() : now)
+                .createdAt(now)
                 .updatedAt(now)
                 .build();
     }

@@ -16,7 +16,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -30,68 +30,69 @@ public class ExecutionReportProcessor {
     private final OrderLedgerRepository orderLedgerRepository;
     private final SettlementOutboxRepository settlementOutboxRepository;
     private final ObjectMapper objectMapper;
+    private final TransactionTemplate transactionTemplate;
     private final OrderStateMachine stateMachine = new OrderStateMachine();
 
-    @Transactional
     public ApplyResult process(ExecutionReport er) {
         if (orderLedgerRepository.existsByFixId(er.fixId())) {
             log.info("ExecutionReport fixId={} already processed for numericOrderId={}. Skipping.",
                     er.fixId(), er.numericOrderId());
-            return null;
+            return new ApplyResult.AlreadyProcessed(er.fixId(), er.numericOrderId());
         }
 
-        Optional<OrderEntity> orderEntityOpt = orderRepository.findByNumericOrderIdWithLock(er.numericOrderId());
-        Order currentOrder = orderEntityOpt.map(OrderEntityMapper::toDomain).orElse(null);
+        try {
+            return transactionTemplate.execute(status -> {
+                Optional<OrderEntity> orderEntityOpt = orderRepository.findByNumericOrderIdWithLock(er.numericOrderId());
+                Order currentOrder = orderEntityOpt.map(OrderEntityMapper::toDomain).orElse(null);
 
-        ApplyResult result = stateMachine.apply(currentOrder, er);
+                ApplyResult result = stateMachine.apply(currentOrder, er);
 
-        switch (result) {
-            case ApplyResult.Success success -> {
-                Order updatedOrder = success.order();
-                OrderEntity entityToSave = OrderEntityMapper.toEntity(updatedOrder, orderEntityOpt.orElse(null));
+                switch (result) {
+                    case ApplyResult.Success success -> {
+                        Order updatedOrder = success.order();
+                        OrderEntity entityToSave = OrderEntityMapper.toEntity(updatedOrder, orderEntityOpt.orElse(null));
 
-                try {
-                    orderRepository.saveAndFlush(entityToSave);
-                } catch (DataIntegrityViolationException e) {
-                    log.info("Concurrent insert caught on orders for numericOrderId={}. Transaction will rollback.", er.numericOrderId());
-                    throw e;
+                        orderRepository.save(entityToSave);
+
+                        String erPayloadJson = toJson(er);
+                        OrderLedgerEntity ledgerEntity = OrderLedgerEntity.builder()
+                                .numericOrderId(er.numericOrderId())
+                                .fixId(er.fixId())
+                                .status(er.status().name())
+                                .payload(erPayloadJson)
+                                .appliedAt(LocalDateTime.now())
+                                .build();
+
+                        orderLedgerRepository.save(ledgerEntity);
+
+                        if (success.settlementRequired()) {
+                            String settlementPayloadJson = toJson(updatedOrder);
+                            SettlementOutboxEntity outboxEntity = SettlementOutboxEntity.builder()
+                                    .numericOrderId(updatedOrder.numericOrderId())
+                                    .payload(settlementPayloadJson)
+                                    .status("PENDING")
+                                    .createdAt(LocalDateTime.now())
+                                    .build();
+                            settlementOutboxRepository.save(outboxEntity);
+                        }
+                    }
+                    case ApplyResult.Rejection rejection -> {
+                        log.warn("ExecutionReport fixId={} rejected for numericOrderId={}: [{}] {}",
+                                er.fixId(), er.numericOrderId(), rejection.reason(), rejection.message());
+                    }
+                    case ApplyResult.AlreadyProcessed alreadyProcessed -> {
+                        log.info("ExecutionReport fixId={} already processed for numericOrderId={}.",
+                                alreadyProcessed.fixId(), alreadyProcessed.numericOrderId());
+                    }
                 }
 
-                String erPayloadJson = toJson(er);
-                OrderLedgerEntity ledgerEntity = OrderLedgerEntity.builder()
-                        .numericOrderId(er.numericOrderId())
-                        .fixId(er.fixId())
-                        .status(er.status().name())
-                        .payload(erPayloadJson)
-                        .appliedAt(LocalDateTime.now())
-                        .build();
-
-                try {
-                    orderLedgerRepository.saveAndFlush(ledgerEntity);
-                } catch (DataIntegrityViolationException e) {
-                    log.info("Duplicate fixId={} caught on ledger insert for numericOrderId={}. Transaction will rollback.",
-                            er.fixId(), er.numericOrderId());
-                    throw e;
-                }
-
-                if (success.settlementRequired()) {
-                    String settlementPayloadJson = toJson(updatedOrder);
-                    SettlementOutboxEntity outboxEntity = SettlementOutboxEntity.builder()
-                            .numericOrderId(updatedOrder.numericOrderId())
-                            .payload(settlementPayloadJson)
-                            .status("PENDING")
-                            .createdAt(LocalDateTime.now())
-                            .build();
-                    settlementOutboxRepository.save(outboxEntity);
-                }
-            }
-            case ApplyResult.Rejection rejection -> {
-                log.warn("ExecutionReport fixId={} rejected for numericOrderId={}: [{}] {}",
-                        er.fixId(), er.numericOrderId(), rejection.reason(), rejection.message());
-            }
+                return result;
+            });
+        } catch (DataIntegrityViolationException e) {
+            log.info("Duplicate fixId={} or order constraint caught concurrently for numericOrderId={}. Returning AlreadyProcessed.",
+                    er.fixId(), er.numericOrderId());
+            return new ApplyResult.AlreadyProcessed(er.fixId(), er.numericOrderId());
         }
-
-        return result;
     }
 
     private String toJson(Object object) {
